@@ -252,4 +252,53 @@ GROUP BY nc.country
 ORDER BY no_of_comedy_movies DESC
 LIMIT 1;
 
--- 3) for each year (as per date
+-- 3) for each year (as per date added to netflix), which director has maximum number of movies released
+SELECT nd.director, YEAR(n.date_added) AS date_year, COUNT(n.show_id) AS no_of_movies
+FROM netflix n
+INNER JOIN netflix_directors nd ON n.show_id = nd.show_id
+WHERE n.type = 'Movie'
+GROUP BY date_year, director
+ORDER BY no_of_movies DESC;
+
+WITH cte AS (
+SELECT nd.director, YEAR(n.date_added) AS date_year, COUNT(n.show_id) AS no_of_movies
+FROM netflix n
+INNER JOIN netflix_directors nd ON n.show_id = nd.show_id
+WHERE n.type = 'Movie'
+GROUP BY director, date_year
+),
+cte2 AS (
+SELECT *, RANK() OVER(PARTITION BY date_year ORDER BY no_of_movies DESC, director) AS rn
+FROM cte)
+SELECT * FROM cte2
+WHERE rn = 1;
+
+-- 4) What is average duration of movies in each genre
+SELECT ng.genre, ROUND(AVG(CAST(REPLACE(n.duration, ' min', '') AS UNSIGNED)), 2) AS avg_duration
+FROM netflix n
+INNER JOIN netflix_genre ng ON n.show_id = ng.show_id
+WHERE n.type = 'Movie'
+GROUP BY ng.genre
+ORDER BY avg_duration DESC;
+
+-- 5) find the list of directors who have created genre horror and comedy both - display the director name along with number of comedy and horror directed by them
+SELECT n.show_id, nd.director, ng.genre
+FROM netflix n
+INNER JOIN netflix_directors nd ON n.show_id = nd.show_id
+INNER JOIN netflix_genre ng ON n.show_id = ng.show_id
+WHERE n.type = 'Movie';
+
+
+WITH cte AS (
+SELECT n.show_id, nd.director, ng.genre
+FROM netflix n
+INNER JOIN netflix_directors nd ON n.show_id = nd.show_id
+INNER JOIN netflix_genre ng ON n.show_id = ng.show_id
+WHERE n.type = 'Movie'
+)
+SELECT director,
+COUNT(CASE WHEN genre = 'Comedies' THEN 1 END) AS no_of_comedies,
+COUNT(CASE WHEN genre = 'Horror Movies' THEN 1 END) AS no_of_horrors
+FROM cte
+GROUP BY director
+HAVING no_of_comedies >= 1 AND no_of_horrors >= 1;
